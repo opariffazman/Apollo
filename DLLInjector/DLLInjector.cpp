@@ -32,7 +32,7 @@ DWORD GetProcId(const wchar_t* procName)
 
 int main()
 {
-    const char* dllPath = "C:\\Program Files\\Steam\\steamapps\\common\\Hades\\x64\\SDL2Hook.dll";
+    const char* dllPath = "C:\\Program Files\\Steam\\steamapps\\common\\Hades\\x64\\ApolloHook.dll";
     const wchar_t* procName = L"Hades.exe";
     DWORD procId = 0;
 
