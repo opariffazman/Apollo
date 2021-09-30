@@ -70,43 +70,35 @@ void* HookSDL_JoystickSetLED(void* joystickPtr, void* red, void* green, void* bl
 
     std::string rgb = rraw.substr(rraw.length() - 2) + graw.substr(graw.length() - 2) + braw.substr(braw.length() - 2);
 
-    if (rgb == "0000FF") {
-        // this is returned after getting loot or after any loading screen
-    }
-    else if (rgb=="FFFFFF") {
-        // this is returned for hammers
-    }
-    else {
+
+    if (rgb != "0000FF" && rgb != "FFFFFF") {
         // anything else return values of Loot.Color from "C:\Program Files\Steam\steamapps\common\Hades\Content\Scripts\LootData.lua"
 		// however color from LightingColor is more accurate/suitable for Chroma usage
         static RZEFFECTID EffectId = GUID_NULL;
-        if (IsEqualGUID(EffectId, GUID_NULL))
-        {
-            impl.CreateEffectGroup(&EffectId);
+        ChromaSDK::Keyboard::STATIC_EFFECT_TYPE Static = {};
 
-            RZEFFECTID Frame1;
-            RZEFFECTID Frame2;
+        if (rgb == "FFFF40") Static.Color = ZEUS;
+        else if (rgb == "FF1400") Static.Color = ARES;
+        else if (rgb == "6EFF00") Static.Color = ARTEMIS;
+        else if (rgb == "FF32F0") Static.Color = APHRODITE;
+        else if (rgb == "6040FF") Static.Color = ATHENA;
+        else if (rgb == "00C8FF") Static.Color = POSEIDON;
+        else if (rgb == "60BDFF") Static.Color = DEMETER;
+        else if (rgb == "FF5A00") Static.Color = HERMES;
+        else if (rgb == "6419FF") Static.Color = CHAOS;
+        else Static.Color = WHITE;
 
-            ChromaSDK::Keyboard::STATIC_EFFECT_TYPE Static = {};
-            Static.Color = GREEN;
-
-            impl.CreateKeyboardEffectImpl(ChromaSDK::Keyboard::CHROMA_STATIC, &Static, &Frame1);
-
-            impl.CreateKeyboardEffectImpl(ChromaSDK::Keyboard::CHROMA_NONE, NULL, &Frame2);
-
-            impl.AddToGroup(EffectId, Frame2, 200);  // Clear the LEDs
-
-            // Blink 3 times
-            impl.AddToGroup(EffectId, Frame1, 200);
-            impl.AddToGroup(EffectId, Frame2, 200);
-            impl.AddToGroup(EffectId, Frame1, 200);
-            impl.AddToGroup(EffectId, Frame2, 200);
-            impl.AddToGroup(EffectId, Frame1, 200);
-            impl.AddToGroup(EffectId, Frame2, 200);
-        }
-
+        impl.CreateKeyboardEffectImpl(ChromaSDK::Keyboard::CHROMA_STATIC, &Static, NULL);
         impl.SetEffectImpl(EffectId);
     }
+    else {
+        static RZEFFECTID EffectId = GUID_NULL;
+
+        impl.CreateKeyboardEffectImpl(ChromaSDK::Keyboard::CHROMA_NONE, NULL);
+        impl.SetEffectImpl(EffectId);
+    }
+
+    //MessageBoxA(NULL, rgb.c_str(), "ApolloHook.dll", MB_OK);
 
     return (void* (*)(void* ctrl, void* red, void* green, void* blue)) HooksManager::GetOriginalFunction((ULONG_PTR)HookSDL_JoystickSetLED);
 }

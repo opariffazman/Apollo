@@ -13,7 +13,7 @@ BOOL APIENTRY DllMain(HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-        MessageBoxA(NULL, "Apollo Initialized", "SDL2Hook.dll", MB_OK);
+        MessageBoxA(NULL, "Apollo Initialized", "ApolloHook.dll", MB_OK);
         break;
     case DLL_THREAD_ATTACH:
         break;
