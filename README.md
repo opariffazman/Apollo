@@ -5,6 +5,8 @@ Once saw a reddit post showing how their controllers light up according to the g
 
 Feelsbadman no such functionalities for PC/MKB players even where there's so much potential for RGB goodness.
 
+![image](https://user-images.githubusercontent.com/10364153/135413961-75b307cf-d24a-4b46-a173-52a0aeca57e3.png)
+
 # Methodology
 
 As of now, here's what I've managed to achieve so far.
