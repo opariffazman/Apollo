@@ -40,6 +40,8 @@ SETEFFECT SetEffect = nullptr;
 DELETEEFFECT DeleteEffect = nullptr;
 QUERYDEVICE QueryDevice = nullptr;
 
+#define EVENT_NAME  _T("{4784D90A-1179-4F7D-8558-52511D809190}")
+
 #define MAX_EFFECTS     100
 
 typedef struct _EFFECTDATATYPE
@@ -109,64 +111,104 @@ DWORD WINAPI Thread_RenderEffects(LPVOID lpParameter)
 	return 0;
 }
 
-ChromaImplementation::ChromaImplementation() :m_ChromaSDKModule(nullptr)
+ChromaImplementation::ChromaImplementation() :
+	m_ChromaSDKModule(NULL),
+	m_ChromaSDKEvent(NULL)
 {
 }
+
 ChromaImplementation::~ChromaImplementation()
 {
 }
 
 BOOL ChromaImplementation::Initialize()
 {
-	if (m_ChromaSDKModule == nullptr)
+	if (m_ChromaSDKModule == NULL)
 	{
-		m_ChromaSDKModule = LoadLibrary(CHROMASDKDLL);
-		if (m_ChromaSDKModule == nullptr)
+		m_ChromaSDKModule = ::LoadLibrary(CHROMASDKDLL);
+		if (m_ChromaSDKModule != NULL)
 		{
-			return FALSE;
-		}
-	}
-
-	if (Init == nullptr)
-	{
-		auto Result = RZRESULT_INVALID;
-		Init = reinterpret_cast<INIT>(GetProcAddress(m_ChromaSDKModule, "Init"));
-		if (Init)
-		{
-			Result = Init();
-			if (Result == RZRESULT_SUCCESS)
+			INIT Init = (INIT)::GetProcAddress(m_ChromaSDKModule, "Init");
+			if (Init != NULL)
 			{
-				CreateEffect = reinterpret_cast<CREATEEFFECT>(GetProcAddress(m_ChromaSDKModule, "CreateEffect"));
-				CreateKeyboardEffect = reinterpret_cast<CREATEKEYBOARDEFFECT>(GetProcAddress(m_ChromaSDKModule, "CreateKeyboardEffect"));
-				CreateMouseEffect = reinterpret_cast<CREATEMOUSEEFFECT>(GetProcAddress(m_ChromaSDKModule, "CreateMouseEffect"));
-				CreateHeadsetEffect = reinterpret_cast<CREATEHEADSETEFFECT>(GetProcAddress(m_ChromaSDKModule, "CreateHeadsetEffect"));
-				CreateMousepadEffect = reinterpret_cast<CREATEMOUSEPADEFFECT>(GetProcAddress(m_ChromaSDKModule, "CreateMousepadEffect"));
-				CreateKeypadEffect = reinterpret_cast<CREATEKEYPADEFFECT>(GetProcAddress(m_ChromaSDKModule, "CreateKeypadEffect"));
-				SetEffect = reinterpret_cast<SETEFFECT>(GetProcAddress(m_ChromaSDKModule, "SetEffect"));
-				DeleteEffect = reinterpret_cast<DELETEEFFECT>(GetProcAddress(m_ChromaSDKModule, "DeleteEffect"));
-				QueryDevice = reinterpret_cast<QUERYDEVICE>(GetProcAddress(m_ChromaSDKModule, "QueryDevice"));
+				RZRESULT rzResult = Init();
+				if (rzResult == RZRESULT_SUCCESS)
+				{
+					CreateEffect = (CREATEEFFECT)::GetProcAddress(m_ChromaSDKModule, "CreateEffect");
+					CreateKeyboardEffect = (CREATEKEYBOARDEFFECT)::GetProcAddress(m_ChromaSDKModule, "CreateKeyboardEffect");
+					CreateMouseEffect = (CREATEMOUSEEFFECT)::GetProcAddress(m_ChromaSDKModule, "CreateMouseEffect");
+					CreateMousepadEffect = (CREATEMOUSEPADEFFECT)::GetProcAddress(m_ChromaSDKModule, "CreateMousepadEffect");
+					CreateKeypadEffect = (CREATEKEYPADEFFECT)::GetProcAddress(m_ChromaSDKModule, "CreateKeypadEffect");
+					CreateHeadsetEffect = (CREATEHEADSETEFFECT)::GetProcAddress(m_ChromaSDKModule, "CreateHeadsetEffect");
+					SetEffect = (SETEFFECT)GetProcAddress(m_ChromaSDKModule, "SetEffect");
+					DeleteEffect = (DELETEEFFECT)GetProcAddress(m_ChromaSDKModule, "DeleteEffect");
 
-				if (CreateEffect &&
-					CreateKeyboardEffect &&
-					CreateMouseEffect &&
-					CreateHeadsetEffect &&
-					CreateMousepadEffect &&
-					CreateKeypadEffect &&
-					SetEffect &&
-					DeleteEffect &&
-					QueryDevice)
-				{
-					return TRUE;
-				}
-				else
-				{
-					return FALSE;
+					if (CreateEffect &&
+		                CreateKeyboardEffect &&
+						CreateMouseEffect &&
+						CreateHeadsetEffect &&
+						CreateMousepadEffect &&
+						CreateKeypadEffect &&
+						SetEffect &&
+						DeleteEffect &&
+						QueryDevice)
+					{
+						if (m_ChromaSDKEvent == NULL)
+						{
+							m_ChromaSDKEvent = ::CreateEvent(NULL, TRUE, FALSE, EVENT_NAME);
+						}
+
+						return TRUE;
+
+					}
+					else
+					{
+						return FALSE;
+					}	
 				}
 			}
 		}
 	}
 
 	return TRUE;
+
+}
+
+void ChromaImplementation::UnInitialize()
+{
+	// Free memeory
+	while (!g_Effects.empty())
+	{
+		auto iterator = g_Effects.begin();
+		for (int i = 0; i < iterator->second.numEffects; i++)
+		{
+			DeleteEffect(iterator->second.Effect[i].id);
+		}
+
+		g_Effects.erase(iterator);
+	};
+
+	if (m_ChromaSDKEvent != NULL)
+	{
+		::CloseHandle(m_ChromaSDKEvent);
+		m_ChromaSDKEvent = NULL;
+	}
+
+	if (m_ChromaSDKModule != NULL)
+	{
+		UNINIT UnInit = (UNINIT)::GetProcAddress(m_ChromaSDKModule, "UnInit");
+		if (UnInit != NULL)
+		{
+			RZRESULT rzResult = UnInit();
+			if (rzResult != RZRESULT_SUCCESS)
+			{
+				// Some error here
+			}
+		}
+
+		::FreeLibrary(m_ChromaSDKModule);
+		m_ChromaSDKModule = NULL;
+	}
 }
 
 void ChromaImplementation::ResetEffects(size_t DeviceType)
@@ -266,6 +308,44 @@ void ChromaImplementation::SetEffectImpl(RZEFFECTID EffectId)
 		if (SetEffect == NULL) return;
 
 		SetEffect(EffectId);
+	}
+}
+
+void ChromaImplementation::DeleteEffectImpl(RZEFFECTID EffectId)
+{
+	auto iterator = g_Effects.find(EffectId);
+	if (iterator != g_Effects.end())
+	{
+		EFFECTDATATYPE EffectData = iterator->second;
+		for (int i = 0; i < EffectData.numEffects; i++)
+		{
+			DeleteEffect(EffectData.Effect[i].id);
+		}
+
+		g_Effects.erase(iterator);
+	}
+	else
+	{
+		if (DeleteEffect == NULL) return;
+
+		DeleteEffect(EffectId);
+	}
+}
+
+void ChromaImplementation::StopEffectImpl(RZEFFECTID EffectId)
+{
+	auto iterator = g_Effects.find(EffectId);
+	if (iterator != g_Effects.end())
+	{
+		if ((iterator->second.repeat == TRUE) &&
+			(iterator->second.thread != NULL))
+		{
+			iterator->second.repeat = FALSE;
+
+			CloseHandle(iterator->second.thread);
+
+			iterator->second.thread = NULL;
+		}
 	}
 }
 
